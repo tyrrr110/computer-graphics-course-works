@@ -1,0 +1,70 @@
+#ifdef VS 
+ 
+precision highp float;
+attribute vec3 position;
+attribute vec3 normal;
+uniform mat3 normalMatrix;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+varying vec3 fNormal;
+varying vec3 fPosition;
+varying vec3 rawPos;
+uniform float time;
+
+float strench(float angle, float axis) 
+{
+  return sin(angle)/2.0>0.0 ? (sin(angle)/2.0+0.5)*axis : -(sin(angle)/2.0-0.5)*axis;
+}
+
+void main()
+{
+  float theta = time*10.0;
+  rawPos = position;
+  vec3 normal = normalize(normalMatrix * normal);
+  vec4 pos = modelViewMatrix * vec4(position, 1.0);
+  pos.y=strench(theta, pos.y);
+  pos.x=strench(theta, pos.x);
+  //normal.y=strench(theta, normal.y);
+  //normal.x=strench(theta, normal.x);
+  fNormal = normal.xyz;
+  fPosition = pos.xyz;
+  gl_Position = projectionMatrix * pos;
+}
+ 
+#else 
+ 
+precision highp float;
+uniform float time;
+varying vec3 fPosition;
+varying vec3 fNormal;
+varying vec3 rawPos;
+const vec3 lightColor1 = vec3(1.0,1.0,1.0);
+const vec3 lightColor2 = vec3(1.0,0.6,0.0);
+const vec3 light1 = vec3(0.0,1.5,1.0); //stationary light
+
+vec2 phongReflection(vec3 light, float Ka, float Kd, float Ks, float specExp)
+{
+  vec3 n = normalize(fNormal);
+  vec3 l = normalize(light);
+  vec3 e = normalize(-fPosition);
+  vec3 h = normalize(l+e);
+  
+  float Ia_d = Ka + Kd*pow(dot(l,n),2.0);
+  float Is = Ks*pow(max(dot(h,n),0.0),specExp);
+  return vec2(Ia_d, Is);
+  
+}
+
+void main()
+{
+  float theta = 20.0*time;
+  vec3 pos = fPosition;
+  vec3 objColor = sin(100.0*rawPos.y)<0.5 ? vec3(1.0,1.0,1.0) : vec3(0.4,0.4,0.4);//draw some stripes
+  vec3 light2 = vec3(1.5*cos(theta),0.0,1.5*sin(theta)); //moving light
+  vec3 Color_ad = phongReflection(light1, 0.2, 0.8, 0.0, 0.0).x*lightColor1*objColor;
+  vec3 Color_s = phongReflection(light2, 0.0, 0.0, 1.6, 32.0).y*lightColor2;
+  
+  gl_FragColor = vec4(Color_ad+Color_s, 1.0);
+}
+ 
+#endif
